@@ -6,6 +6,8 @@ header h1{margin:0 0 6px;font-size:2rem;letter-spacing:.5px;}header h1 .em{color
 .pagenav{margin-top:14px;font-size:.85rem;}
 .pagenav a{color:var(--accent2);text-decoration:none;border-bottom:1px dotted var(--accent2);}
 .pagenav a:hover{color:var(--accent);border-bottom-color:var(--accent);}
+.suggest-btn{display:inline-block;margin-left:26px;padding:5px 14px;border:1px solid var(--accent);border-radius:20px;color:var(--accent) !important;border-bottom:none !important;font-weight:600;}
+.suggest-btn:hover{background:var(--accent);color:#1a0d06 !important;}
 .wrap{max-width:620px;margin:0 auto;padding:28px 16px 50px;}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;}
 label{display:block;margin:16px 0 6px;font-size:.85rem;color:var(--accent2);}
@@ -19,7 +21,7 @@ button:hover{filter:brightness(1.08);}
 footer{text-align:center;color:var(--muted);font-size:.78rem;padding:22px;border-top:1px solid var(--line);}
 </style></head><body>
 <header><h1>Suggest a <span class="em">Venue</span></h1><p>Help improve the Seattle music calendar</p>
-<nav class="pagenav"><a href="request-venue.html">Suggest a Venue</a> · <a href="index.html">90-Day Calendar</a></nav></header>
+<nav class="pagenav"><a class="suggest-btn" href="request-venue.html">Suggest a Venue</a> · <a href="index.html">90-Day Calendar</a></nav></header>
 <div class="wrap"><div class="card">
   <form id="f" onsubmit="return send(event)">
     <label for="v">Venue name <span class="req">*</span></label>
