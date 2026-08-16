@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Suggest a Venue — Seattle Music Calendar</title><style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--ink:#e6edf3;--muted:#8b949e;--accent:#f7784b;--accent2:#58a6ff;--line:#30363d;}
+*{box-sizing:border-box;}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.45;}
+header{padding:36px 24px 22px;text-align:center;background:linear-gradient(160deg,#1a1208,#0d1117 70%);border-bottom:1px solid var(--line);}
+header h1{margin:0 0 6px;font-size:2rem;letter-spacing:.5px;}header h1 .em{color:var(--accent);}header p{margin:3px 0;color:var(--muted);font-size:.92rem;}
+.pagenav{margin-top:14px;font-size:.85rem;}
+.pagenav a{color:var(--accent2);text-decoration:none;border-bottom:1px dotted var(--accent2);}
+.pagenav a:hover{color:var(--accent);border-bottom-color:var(--accent);}
+.wrap{max-width:620px;margin:0 auto;padding:28px 16px 50px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;}
+label{display:block;margin:16px 0 6px;font-size:.85rem;color:var(--accent2);}
+.req{color:var(--accent);}
+input[type=text]{width:100%;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:.95rem;}
+input[type=text]:focus{outline:none;border-color:var(--accent2);}
+.note{font-size:.74rem;color:var(--muted);margin-top:4px;}
+button{margin-top:22px;background:var(--accent);color:#1a0d06;border:none;border-radius:8px;padding:11px 20px;font-size:.95rem;font-weight:600;cursor:pointer;}
+button:hover{filter:brightness(1.08);}
+.msg{margin-top:16px;padding:12px;border-radius:8px;background:rgba(88,166,255,.1);color:var(--accent2);font-size:.85rem;display:none;}
+footer{text-align:center;color:var(--muted);font-size:.78rem;padding:22px;border-top:1px solid var(--line);}
+</style></head><body>
+<header><h1>Suggest a <span class="em">Venue</span></h1><p>Help improve the Seattle music calendar</p>
+<nav class="pagenav"><a href="request-venue.html">Suggest a Venue</a> · <a href="index.html">90-Day Calendar</a></nav></header>
+<div class="wrap"><div class="card">
+  <form id="f" onsubmit="return send(event)">
+    <label for="v">Venue name <span class="req">*</span></label>
+    <input type="text" id="v" name="v" required placeholder="e.g. The Triple Door">
+    <label for="u">Venue URL <span style="color:var(--muted)">(optional)</span></label>
+    <input type="text" id="u" name="u" placeholder="https://...">
+    <div class="note">Submitting opens your email app with a pre-filled message. No account needed.</div>
+    <button type="submit">Send request</button>
+  </form>
+  <div class="msg" id="msg">Thanks! Your email app should have opened with the request ready to send.</div>
+</div></div>
+<footer>Suggestions go to the calendar maintainer · rickgregory@gmail.com</footer>
+<script>
+function send(e){
+  e.preventDefault();
+  var v=document.getElementById('v').value.trim();
+  if(!v){alert('Venue name is required.');return false;}
+  var u=document.getElementById('u').value.trim();
+  var body='Venue request for Seattle music calendar\n\nVenue name: '+v+'\nVenue URL: '+(u||'(not provided)')+'\n';
+  var mail='mailto:rickgregory@gmail.com?subject='+encodeURIComponent('Venue suggestion: '+v)+'&body='+encodeURIComponent(body);
+  window.location.href=mail;
+  document.getElementById('msg').style.display='block';
+  return false;
+}
+</script></body></html>
