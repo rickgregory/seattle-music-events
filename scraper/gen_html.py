@@ -2,8 +2,9 @@
 """Generate index.html (90-day calendar) and edmonds_center_arts_season.html."""
 import json, re, html, datetime, urllib.parse, collections, os
 
-SME = '/tmp/sme'
-OUTDIR = '/Users/rickgregory/Desktop/seattle-music-events'
+PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRAPER_DIR = os.path.join(PROJ, 'scraper')
+OUTDIR = PROJ
 TODAY = datetime.date.today()
 HORIZON = TODAY + datetime.timedelta(days=90)
 REFRESH = TODAY.strftime('Last refreshed: %a, %b %d, %Y').replace(' 0', ' ')
@@ -51,7 +52,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:22px;border
 
 
 def build_index():
-    ev = json.load(open(f'{SME}/merged.json'))
+    ev = json.load(open(f'{SCRAPER_DIR}/merged.json'))
     for e in ev:
         e['d'] = datetime.date.fromisoformat(e['date'])
     ev.sort(key=lambda e: (e['d'], e['title'].lower()))
@@ -113,7 +114,7 @@ CSS_ECA = CSS_INDEX.replace('max-width:1100px', 'max-width:900px')
 
 
 def build_eca():
-    ev = json.load(open(f'{SME}/eca_all.json'))
+    ev = json.load(open(f'{SCRAPER_DIR}/eca_all.json'))
     seen, uniq = set(), []
     for e in ev:
         k = (e['title'].lower().strip(), e['date'])

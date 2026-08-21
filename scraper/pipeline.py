@@ -2,8 +2,10 @@
 """Seattle music events pipeline: parse sources -> dedupe -> window -> genre -> HTML."""
 import re, html, json, os, sys, urllib.request, urllib.parse, datetime, glob, unicodedata
 
-SME = '/tmp/sme'
-OUTDIR = '/Users/rickgregory/Desktop/seattle-music-events'
+PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRAPER_DIR = os.path.join(PROJ, 'scraper')
+SME = os.path.join(SCRAPER_DIR, 'fetched')
+OUTDIR = PROJ
 TODAY = datetime.date.today()
 HORIZON = TODAY + datetime.timedelta(days=90)
 
@@ -47,6 +49,13 @@ def parse_date_text(t):
 
 # ---------------------------------------------------------------- sources
 def parse_everout():
+    """Parses the curated /seattle/music/ page (fetched by curl in run.sh).
+    Known gap: EverOut's full "Live Music" category feed
+    (everout.com/seattle/events/?category=live-music) has more events (e.g.
+    smaller bar/support-act shows) but sits behind an AWS WAF JS challenge
+    that curl can't solve, and is paginated per-day. See README "Known
+    limitations" before trying to "fix" missing EverOut events here — it's
+    not a parsing bug."""
     out, h = [], rd(f'{SME}/everout.html')
     for blk in re.split(r'(?=<div class="item-card occurrence-card card">)', h)[1:]:
         blk = blk[:4000]
@@ -220,7 +229,7 @@ KEYWORDS = [
     (r'\bpop\b', 'Pop'),
 ]
 
-MB_CACHE = f'{SME}/mb_cache.json'
+MB_CACHE = os.path.join(SCRAPER_DIR, 'mb_cache.json')
 try:
     mb_cache = json.load(open(MB_CACHE))
 except Exception:
@@ -386,9 +395,9 @@ def main():
     merged.sort(key=lambda e: (e['date'], e['title'].lower()))
     print(f'MERGED: {len(merged)} in window {TODAY} .. {HORIZON}', file=sys.stderr)
     json.dump([dict(e, date=e['date'].isoformat()) for e in merged],
-              open(f'{SME}/merged.json', 'w'), indent=1)
+              open(f'{SCRAPER_DIR}/merged.json', 'w'), indent=1)
     json.dump([dict(e, date=e['date'].isoformat()) for e in eca_all],
-              open(f'{SME}/eca_all.json', 'w'), indent=1)
+              open(f'{SCRAPER_DIR}/eca_all.json', 'w'), indent=1)
     print('FAILURES: ' + (', '.join(failures) if failures else 'none'), file=sys.stderr)
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /Users/rickgregory/Desktop/seattle-music-events
+cd "$(cd "$(dirname "$0")/.." && pwd)"
 UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 echo "=== spot-check 8 event URLs (EverOut/Bandsintown bot-block curl per skill) ==="
 grep -oE 'href="https://(do206|www\.edmondscenterforthearts|artsevents\.washington|everout)[^"]+"' index.html \
