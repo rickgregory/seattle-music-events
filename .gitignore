@@ -7,4 +7,6 @@ scraper/eca_all.json
 
 # OS / editor cruft
 .DS_Store
+._*
 *.swp
+scraper/_spotcheck.py

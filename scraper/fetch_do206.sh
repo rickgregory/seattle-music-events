@@ -13,8 +13,8 @@ fetch_one() {
 
 n=0
 for i in $(seq 0 90); do
-  d=$(date -v+${i}d "+%Y/%-m/%-d")
-  fn=$(date -v+${i}d "+%Y-%m-%d")
+  d=$(date -d "+${i} days" "+%Y/%-m/%-d")
+  fn=$(date -d "+${i} days" "+%Y-%m-%d")
   fetch_one "$OUT/$fn.html" "https://do206.com/events/music/$d" &
   n=$((n + 1))
   if [ "$n" -ge 6 ]; then

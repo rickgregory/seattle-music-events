@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Seattle music events pipeline: parse sources -> dedupe -> window -> genre -> HTML."""
-import re, html, json, os, sys, urllib.request, urllib.parse, datetime, glob, unicodedata
+import re, html, json, os, sys, time, urllib.request, urllib.parse, datetime, glob, unicodedata
 
 PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRAPER_DIR = os.path.join(PROJ, 'scraper')
@@ -249,18 +249,32 @@ def strip_act(title):
     t = re.sub(r'\s*\(.*?\)\s*', ' ', t)
     return t.strip(' -–—:,')
 
+def mb_fetch(q):
+    url = ('https://musicbrainz.org/ws/2/artist/?query=' + urllib.parse.quote(q)
+           + '&fmt=json&limit=1')
+    req = urllib.request.Request(url, headers={
+        'User-Agent': 'SeattleMusicEvents/1.0 (rickgregory local calendar)'})
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                if r.status == 200:
+                    return json.load(r)
+        except Exception:
+            pass
+        if attempt < 3:
+            time.sleep(1.5 + attempt)
+    return None
+
 def mb_genre(act):
     key = act.lower()
     if key in mb_cache:
         return mb_cache[key]
     res = None
     try:
-        q = urllib.parse.quote(f'artist:"{act}"')
-        url = (f'https://musicbrainz.org/ws/2/artist/?query={q}&fmt=json&limit=1')
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'SeattleMusicEvents/1.0 (rickgregory local calendar)'})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            data = json.load(r)
+        data = mb_fetch(f'artist:"{act}"')
+        if not data:
+            mb_cache[key] = None
+            return None
         arts = data.get('artists') or []
         if arts:
             a = arts[0]
@@ -380,7 +394,7 @@ def main():
         from concurrent.futures import ThreadPoolExecutor
         acts = sorted({e['_act'] for e in need_mb})
         print(f'MB lookups: {len(acts)} distinct acts', file=sys.stderr)
-        with ThreadPoolExecutor(max_workers=6) as ex:
+        with ThreadPoolExecutor(max_workers=4) as ex:
             list(ex.map(mb_genre, acts))
         for e in need_mb:
             mg = mb_cache.get(e['_act'].lower())
