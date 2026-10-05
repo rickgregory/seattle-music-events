@@ -50,35 +50,32 @@ def parse_date_text(t):
 # ---------------------------------------------------------------- sources
 def parse_everout():
     """Parses the curated /seattle/music/ page (fetched by curl in run.sh).
-    Known gap: EverOut's full "Live Music" category feed
-    (everout.com/seattle/events/?category=live-music) has more events (e.g.
-    smaller bar/support-act shows) but sits behind an AWS WAF JS challenge
-    that curl can't solve, and is paginated per-day. See README "Known
-    limitations" before trying to "fix" missing EverOut events here — it's
-    not a parsing bug."""
+    EverOut redesigned to eo-slider-card markup (Sep 2026): event date from the
+    reminder button's data-date="YYYY-MM-DD", title from the eo-slider-card__title
+    link, venue from the meta line after the date. Known gap: EverOut's full
+    "Live Music" category feed (everout.com/seattle/events/?category=live-music)
+    sits behind an AWS WAF JS challenge that curl can't solve. See README."""
     out, h = [], rd(f'{SME}/everout.html')
-    for blk in re.split(r'(?=<div class="item-card occurrence-card card">)', h)[1:]:
+    for blk in re.split(r'(?=<div class="eo-slider-card--)', h)[1:]:
         blk = blk[:4000]
-        m = re.search(r'<a class="item-title[^"]*"\s+href="([^"]+)"[^>]*>(.*?)</a>', blk, re.S)
-        if not m:
+        um = re.search(r'<a href="(https://everout\.com/seattle/events/[^"]+/e\d+/)"', blk)
+        if not um:
             continue
-        url, title = m.group(1), clean(m.group(2))
+        url = um.group(1)
+        tm = re.search(r'class="[^"]*eo-slider-card__title[^"]*"[^>]*>(.*?)</a>', blk, re.S)
+        title = clean(tm.group(1)) if tm else ''
         dm = re.search(r'data-date="(\d{4})-(\d{2})-(\d{2})"', blk)
-        if dm:
-            d = datetime.date(*map(int, dm.groups()))
-        else:
-            sec = re.search(r'<div class="card-secondary">(.*?)</div>', blk, re.S)
-            d = parse_date_text(sec.group(1) if sec else '')
-        if not d or not title:
+        d = datetime.date(*map(int, dm.groups())) if dm else parse_date_text(blk)
+        venue = ''
+        vm = re.search(r'class="eo-slider-card__meta[^"]*">(.*?)</div>', blk, re.S)
+        if vm:
+            parts = re.split(r'&middot;|·', clean(vm.group(1)))
+            if len(parts) > 1:
+                venue = parts[-1].strip()
+        if not (d and title):
             continue
-        vm = re.search(r'\bat\s+([^<\n]{2,80})', re.sub(r'(?s)<br>', '\n', clean_keep(blk)))
-        venue = clean(vm.group(1)) if vm else ''
         out.append(dict(title=title, date=d, venue=venue, url=url, src='EverOut'))
     return out
-
-def clean_keep(blk):
-    sec = re.search(r'<div class="card-secondary">(.*?)</div>', blk, re.S)
-    return sec.group(1) if sec else ''
 
 def parse_do206():
     out = []
@@ -205,6 +202,16 @@ GENRE_MAP = {
 JUNK = re.compile(r'^(19|20)\d{2}|victim|unknown|non-music|spoken|comedy|seen live|'
                   r'american|british|canadian|english|female|male|band|group', re.I)
 
+# Clearly event descriptors, not artist names -> don't waste a MusicBrainz lookup.
+NON_ARTIST = re.compile(
+    r'\b(session|sessions|party|jam|jams|event|events|market|class|classes|'
+    r'workshop|workshops|karaoke|trivia|bingo|open mic|showcase|revue|cabaret|'
+    r'matinee|telethon|auction|gala|pageant|picnic|block party|singalong|'
+    r'sing-along|storytime|family|kids|yoga|paint|craft|film|movie|comedy|'
+    r'improv|theatre|theater|benefit|fundrais|costume|masquerade|prom|'
+    r'homecoming|sound bath|sound healing|paint night|trivia night|game night|'
+    r'live music|all ages|all-ages|free show|free entry|date night)\b', re.I)
+
 KEYWORDS = [
     (r'\btribute\b|\btribute to\b|celebrating the music', 'Tribute'),
     (r'\bfestival\b|\bfest\b(?!ival)', 'Festival'),
@@ -254,15 +261,19 @@ def mb_fetch(q):
            + '&fmt=json&limit=1')
     req = urllib.request.Request(url, headers={
         'User-Agent': 'SeattleMusicEvents/1.0 (rickgregory local calendar)'})
-    for attempt in range(4):
+    for attempt in range(6):
         try:
             with urllib.request.urlopen(req, timeout=20) as r:
                 if r.status == 200:
                     return json.load(r)
+                # MusicBrainz returns 429/503 when throttled; back off, retry.
+                if r.status in (429, 503):
+                    time.sleep(min(2.0 * (attempt + 1), 20))
+                    continue
+                return None
         except Exception:
-            pass
-        if attempt < 3:
-            time.sleep(1.5 + attempt)
+            time.sleep(min(1.5 * (attempt + 1), 15))
+            continue
     return None
 
 def mb_genre(act):
@@ -383,9 +394,12 @@ def main():
         g = keyword_genre(e['title'])
         e['genre'] = g
         e['metro'] = metro(e['venue'])
-        if not g or g in ('Pop', 'Other/Event'):
+        # Only genuinely-unknown genres (no keyword match) warrant a MusicBrainz
+        # lookup. Keyword matches (Pop, Other/Event, etc.) are already resolved.
+        # Skip obvious event-descriptor phrases (jam, trivia, market, ...) too.
+        if not g:
             act = strip_act(e['title'])
-            if 2 < len(act) < 60:
+            if 2 < len(act) < 60 and not NON_ARTIST.search(act):
                 e['_act'] = act
                 need_mb.append(e)
 
@@ -394,7 +408,8 @@ def main():
         from concurrent.futures import ThreadPoolExecutor
         acts = sorted({e['_act'] for e in need_mb})
         print(f'MB lookups: {len(acts)} distinct acts', file=sys.stderr)
-        with ThreadPoolExecutor(max_workers=4) as ex:
+        # Serial (1 worker): MusicBrainz throttles concurrent bursts with 503s.
+        with ThreadPoolExecutor(max_workers=1) as ex:
             list(ex.map(mb_genre, acts))
         for e in need_mb:
             mg = mb_cache.get(e['_act'].lower())
